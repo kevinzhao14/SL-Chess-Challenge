@@ -117,10 +117,7 @@ public class MyBot : IChessBot
                 bestLine = moveLine;
             }
 
-            if (score > alpha) {
-                alpha = score;
-            }
-
+            alpha = Math.Max(alpha, score);
         }
 
         return (bestMove, bestScore, bestLine);
