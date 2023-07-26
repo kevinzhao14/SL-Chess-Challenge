@@ -39,7 +39,7 @@ public class MyBot : IChessBot
 
         double timeAlloc = timer.MillisecondsRemaining / movesLeft * 0.9;
 
-        (Move, long, Move[]) best = BestMove(board, 1, -999999999999, 99999999999, new Move[1]);;
+        (Move, long, Move[]) best = BestMove(board, 1, new Move[1]);;
 
         for (int i = 2; i < 7; i += 2) {
             // if (timer.MillisecondsElapsedThisTurn >= timeAlloc) {
@@ -47,7 +47,7 @@ public class MyBot : IChessBot
             //     break;
             // }
             Console.WriteLine("Running depth " + i);
-            best = BestMove(board, i, -999999999999, 99999999999, new Move[i]);
+            best = BestMove(board, i, new Move[i]);
         }
 
         // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
@@ -82,7 +82,7 @@ public class MyBot : IChessBot
         return moveScore;
     }
 
-    (Move, long, Move[]) BestMove(Board board, int depth, long alpha, long beta, Move[] line) {
+    (Move, long, Move[]) BestMove(Board board, int depth, Move[] line, long alpha=-999999999999, long beta=99999999999) {
         long origAlpha = alpha;
         Move bestMove = new Move();
         long bestScore = -999999999;
@@ -112,6 +112,10 @@ public class MyBot : IChessBot
                 // bad depth, use for move-ordering
                 moves.Add((cached.Item1, 100000));
             }
+        } else if (depth >= 4) {
+            // internal iterative deepening
+            cached.Item1 = BestMove(board, 2, new Move[2]).Item1;
+            moves.Add((cached.Item1, 100000));
         }
 
 
@@ -128,7 +132,7 @@ public class MyBot : IChessBot
             // }
 
             
-            if (!cached.Equals(default) || !cached.Item1.Equals(move)) {
+            if (cached.Equals(default) || !cached.Item1.Equals(move)) {
                 moves.Add((move, score));
             }
         }
@@ -160,7 +164,7 @@ public class MyBot : IChessBot
 
                 // return (move, 100000, moveLine);
             } else {
-                var (m, s, l) = BestMove(board, depth - 1, -beta, -alpha, moveLine);
+                var (m, s, l) = BestMove(board, depth - 1, moveLine, -beta, -alpha);
                 score = -s;
                 moveLine = l;
 
