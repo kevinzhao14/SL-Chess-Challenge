@@ -33,10 +33,29 @@ public class MyBot : IChessBot
     {
         Console.WriteLine("-------------------");
         nodes = 0;
-        int depth = 4;
-        var best = BestMove(board, depth, -999999999999, 99999999999, depth % 2 != 0, new Move[depth]);
+        int depth = 6;
+
+        int movesLeft = (int) Math.Round(board.PlyCount < 90 ? -board.PlyCount / 2 + 50 : 0.05 * board.PlyCount);
+
+        double timeAlloc = timer.MillisecondsRemaining / movesLeft * 0.9;
+
+        (Move, long, Move[]) best = BestMove(board, 1, -999999999999, 99999999999, new Move[1]);;
+
+        for (int i = 2; i < 7; i += 2) {
+            // if (timer.MillisecondsElapsedThisTurn >= timeAlloc) {
+            //     Console.WriteLine("Out of time " + timer.MillisecondsElapsedThisTurn + " " + timeAlloc);
+            //     break;
+            // }
+            Console.WriteLine("Running depth " + i);
+            best = BestMove(board, i, -999999999999, 99999999999, new Move[i]);
+        }
+
+        // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
+
         Console.WriteLine("Nodes checked: " + nodes);
         Console.WriteLine("Line: " + string.Join(", ", best.Item3));
+
+        Console.WriteLine("---- TABLE: " + table.Count);
 
         return best.Item1;
     }
@@ -63,19 +82,20 @@ public class MyBot : IChessBot
         return moveScore;
     }
 
-    (Move, long, Move[]) BestMove(Board board, int depth, long alpha, long beta, bool oddDepth, Move[] line) {
+    (Move, long, Move[]) BestMove(Board board, int depth, long alpha, long beta, Move[] line) {
         long origAlpha = alpha;
         Move bestMove = new Move();
         long bestScore = -999999999;
         Move[] bestLine = {};
 
         (Move, int, long, int) cached;
+        List<(Move, int)> moves = new List<(Move, int)>();
 
         if (table.TryGetValue(board.ZobristKey, out cached)) {
             if (cached.Item2 >= depth) {
                 line[line.Length - depth] = cached.Item1;
                 if (cached.Item4 == 0) {
-                    Console.WriteLine("Cache used " + depth + " " + cached.Item2 + " " + cached.Item4);
+                    // Console.WriteLine("Cache used " + depth + " " + cached.Item2 + " " + cached.Item4);
                     return (cached.Item1, cached.Item3, line);
                 } else if (cached.Item4 == 1) {
                     alpha = Math.Max(alpha, cached.Item3);
@@ -84,23 +104,21 @@ public class MyBot : IChessBot
                 }
 
                 if (alpha >= beta) {
-                    Console.WriteLine("Cache alpha-beta " + depth + " " + cached.Item2 + " " + cached.Item4);
+                    // Console.WriteLine("Cache alpha-beta " + depth + " " + cached.Item2 + " " + cached.Item4);
                     return (cached.Item1, cached.Item3, line);
                 }
             } else {
-                Console.WriteLine("Move ordering cache " + depth + " " + cached.Item2);
+                // Console.WriteLine("Move ordering cache " + depth + " " + cached.Item2);
                 // bad depth, use for move-ordering
+                moves.Add((cached.Item1, 100000));
             }
         }
 
-        // Move[] moves = board.GetLegalMoves();
-
-        List<(Move, int)> moves = new List<(Move, int)>();
 
         foreach (Move move in board.GetLegalMoves()) {
             int score = 0;
             if (move.IsCapture) {
-                score += pieceValues[(int) move.CapturePieceType] - pieceValues[(int) move.MovePieceType];
+                score += pieceValues[(int) move.CapturePieceType] * 12 - pieceValues[(int) move.MovePieceType];
             }
             // if (move.IsPromotion) {
             //     score += pieceValues[(int) move.PromotionPieceType] / 8;
@@ -109,7 +127,10 @@ public class MyBot : IChessBot
             //     score += 8;
             // }
 
-            moves.Add((move, score));
+            
+            if (!cached.Equals(default) || !cached.Item1.Equals(move)) {
+                moves.Add((move, score));
+            }
         }
 
         // if (depth == 4) Console.WriteLine("moves " + string.Join(", ", moves));
@@ -139,7 +160,7 @@ public class MyBot : IChessBot
 
                 // return (move, 100000, moveLine);
             } else {
-                var (m, s, l) = BestMove(board, depth - 1, -beta, -alpha, oddDepth, moveLine);
+                var (m, s, l) = BestMove(board, depth - 1, -beta, -alpha, moveLine);
                 score = -s;
                 moveLine = l;
 
