@@ -151,6 +151,8 @@ public class MyBot : IChessBot
         // if (depth == 4) Console.WriteLine("moves " + string.Join(", ", moves));
 
         moves.Sort((a, b) => b.Item2 - a.Item2);
+
+        bool inCheck = board.IsInCheck();
         
 
         // foreach (var move in moves) {
@@ -165,6 +167,13 @@ public class MyBot : IChessBot
             
             board.MakeMove(move);
 
+            int depthReduction = 1;
+
+            // late move reduction
+            // if (!(depth < 3 || movedata.Item2 >= 400 || move.IsCapture || move.IsPromotion || inCheck || board.IsInCheck())) {
+            //     depthReduction = 2;
+            // }
+
             if (depth == 1 || board.IsInCheckmate() || board.IsDraw()) {
                 score = -Eval(board);
 
@@ -175,7 +184,12 @@ public class MyBot : IChessBot
 
                 // return (move, 100000, moveLine);
             } else {
-                var (m, s, l) = BestMove(board, depth - 1, moveLine, -beta, -alpha);
+                var (m, s, l) = BestMove(board, depth - depthReduction, moveLine, -beta, -alpha);
+
+                // if (depthReduction == 2 && -s > alpha) {
+                //     (m, s, l) = BestMove(board, depth - 1, moveLine, -beta, -alpha);
+                // }
+
                 score = -s;
                 moveLine = l;
 
@@ -184,6 +198,8 @@ public class MyBot : IChessBot
                 //     return (move, 100000, moveLine);
                 // }
             }
+            
+            
 
             board.UndoMove(move);
 
