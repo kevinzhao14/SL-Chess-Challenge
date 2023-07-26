@@ -29,11 +29,15 @@ public class MyBot : IChessBot
     // best move, depth, score, type (exact, lower, upper)
     Dictionary<ulong, (Move, int, long, int)> table = new Dictionary<ulong, (Move, int, long, int)>();
 
-    public Move Think(Board board, Timer timer)
-    {
+    Move[,] killers;
+    int[] killerIndices;
+
+    public Move Think(Board board, Timer timer) {
         Console.WriteLine("-------------------");
         nodes = 0;
-        int depth = 6;
+        // int depth = 6;
+        killers = new Move[32, 2];
+        killerIndices = new int[32];
 
         int movesLeft = (int) Math.Round(board.PlyCount < 90 ? -board.PlyCount / 2 + 50 : 0.05 * board.PlyCount);
 
@@ -41,7 +45,7 @@ public class MyBot : IChessBot
 
         (Move, long, Move[]) best = BestMove(board, 1, new Move[1]);;
 
-        for (int i = 2; i < 7; i += 2) {
+        for (int i = 2; i <= 6; i += 2) {
             // if (timer.MillisecondsElapsedThisTurn >= timeAlloc) {
             //     Console.WriteLine("Out of time " + timer.MillisecondsElapsedThisTurn + " " + timeAlloc);
             //     break;
@@ -53,7 +57,7 @@ public class MyBot : IChessBot
         // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
 
         Console.WriteLine("Nodes checked: " + nodes);
-        Console.WriteLine("Line: " + string.Join(", ", best.Item3));
+        Console.WriteLine("(" + best.Item2 + ") Line: " + string.Join(", ", best.Item3));
 
         Console.WriteLine("---- TABLE: " + table.Count);
 
@@ -120,9 +124,19 @@ public class MyBot : IChessBot
 
 
         foreach (Move move in board.GetLegalMoves()) {
+            if (!cached.Equals(default) && cached.Item1.Equals(move)) {
+                continue;
+            }
+            if (move.Equals(killers[depth, 0]) || move.Equals(killers[depth, 1])) {
+                moves.Add((move, 400));
+                continue;
+            }
             int score = 0;
             if (move.IsCapture) {
-                score += pieceValues[(int) move.CapturePieceType] * 12 - pieceValues[(int) move.MovePieceType];
+                score += pieceValues[(int) move.CapturePieceType] * 4 - pieceValues[(int) move.MovePieceType];
+            }
+            if (move.IsPromotion) {
+                score += pieceValues[(int) move.PromotionPieceType] - 32;
             }
             // if (move.IsPromotion) {
             //     score += pieceValues[(int) move.PromotionPieceType] / 8;
@@ -130,11 +144,8 @@ public class MyBot : IChessBot
             // if (move.IsCastles) {
             //     score += 8;
             // }
-
             
-            if (cached.Equals(default) || !cached.Item1.Equals(move)) {
-                moves.Add((move, score));
-            }
+            moves.Add((move, score));
         }
 
         // if (depth == 4) Console.WriteLine("moves " + string.Join(", ", moves));
@@ -186,6 +197,10 @@ public class MyBot : IChessBot
             }
 
             if (score >= beta) {
+                if (!killers[depth, 0].Equals(move) && !killers[depth, 1].Equals(move)) {
+                    killers[depth, killerIndices[depth]++] = move;
+                    killerIndices[depth] %= 2;
+                }
                 break;
                 // return (move, score, moveLine);
             }
