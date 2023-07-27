@@ -25,6 +25,7 @@ public class MyBot : IChessBot
     int[] pieceValuesEnd = {0, 32, 96, 101, 174, 319, 0};
 
     int nodes = 0;
+    int eval = 0;
 
     // best move, depth, score, type (exact, lower, upper)
     Dictionary<ulong, (Move, int, long, int)> table = new Dictionary<ulong, (Move, int, long, int)>();
@@ -35,6 +36,7 @@ public class MyBot : IChessBot
     public Move Think(Board board, Timer timer) {
         Console.WriteLine("-------------------");
         nodes = 0;
+        eval = 0;
         // int depth = 6;
         killers = new Move[32, 2];
         killerIndices = new int[32];
@@ -43,7 +45,7 @@ public class MyBot : IChessBot
 
         double timeAlloc = timer.MillisecondsRemaining / movesLeft * 0.9;
 
-        (Move, long, Move[]) best = BestMove(board, 1, new Move[1]);;
+        (Move, long, Move[]) best = BestMove(board, 1, new Move[1]);
 
         for (int i = 2; i <= 6; i += 2) {
             // if (timer.MillisecondsElapsedThisTurn >= timeAlloc) {
@@ -56,7 +58,7 @@ public class MyBot : IChessBot
 
         // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
 
-        Console.WriteLine("Nodes checked: " + nodes);
+        Console.WriteLine("Nodes checked: " + nodes + " " + eval);
         Console.WriteLine("(" + best.Item2 + ") Line: " + string.Join(", ", best.Item3));
 
         Console.WriteLine("---- TABLE: " + table.Count);
@@ -65,18 +67,21 @@ public class MyBot : IChessBot
     }
 
     long Eval(Board board) {
+        eval++;
         if (board.IsDraw()) {
             return 0;
         }
 
         long moveScore = 0;
         foreach (PieceList list in board.GetAllPieceLists()) {
+            long score = list.Count * pieceValues[(int) list.TypeOfPieceInList];
+
+            // PST position score
             foreach(Piece piece in list) {
                 Square sq = piece.Square;
-                long score = pieceValues[(int) piece.PieceType];
                 score += ((long) pst[(int) piece.PieceType - 1, piece.IsWhite ? sq.Rank : 7 - sq.Rank] >> (56 - 8 * sq.File) & 0xFF) - 128;
-                moveScore += score * (piece.IsWhite == board.IsWhiteToMove ? 1 : -1);
             }
+            moveScore += score * (list.IsWhitePieceList == board.IsWhiteToMove ? 1 : -1);
         }
 
         if (board.IsInCheckmate()) {
