@@ -25,10 +25,15 @@ public class MyBot : IChessBot
     int[] pieceValuesEnd = {0, 32, 96, 101, 174, 319, 0};
 
     int nodes = 0;
+    int leafNodes = 0;
     int eval = 0;
     bool timeUp = false;
     int timeAlloc;
     Timer time;
+
+    int totalNodes = 0;
+    int totalLeafNodes = 0;
+    int totalTime = 0;
 
     int searchDepth = 0;
 
@@ -42,6 +47,7 @@ public class MyBot : IChessBot
         Console.WriteLine("-------------------" + board.GetFenString());
 
         nodes = 0;
+        leafNodes = 0;
         eval = 0;
         timeUp = false;
         time = timer;
@@ -95,11 +101,17 @@ public class MyBot : IChessBot
 
         // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
 
+        Console.WriteLine("\nStats:");
         Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn);
-        Console.WriteLine("Nodes checked: " + nodes + " " + eval);
+        Console.WriteLine("Nodes checked: " + nodes + " " + leafNodes + " " + eval);
+        Console.WriteLine("TABLE: " + table.Count);
         Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + string.Join(", ", best.Item3));
 
-        Console.WriteLine("TABLE: " + table.Count);
+        totalNodes += nodes;
+        totalLeafNodes += leafNodes;
+        totalTime += timer.MillisecondsElapsedThisTurn;
+        Console.WriteLine("BF/NPS: " + (nodes - 1.0) / (nodes - leafNodes) + " " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
+        Console.WriteLine("Total BF/NPS: " + (totalNodes - 1.0) / (totalNodes - totalLeafNodes) + " " + (totalNodes / 1.0 / totalTime * 1000));
 
         return best.Item1;
     }
@@ -142,6 +154,7 @@ public class MyBot : IChessBot
         }
 
         if (depth == 0 || board.IsInCheckmate() || board.IsDraw()) {
+            leafNodes++;
             return (Move.NullMove, Eval(board, depth), line);
         }
 
@@ -156,6 +169,7 @@ public class MyBot : IChessBot
                 if (cached.Item4 == 0) {
                     line[line.Length - depth] = cached.Item1.ToString() + "_c0";
                     // Console.WriteLine("Cache used " + depth + " " + cached.Item2 + " " + cached.Item4);
+                    leafNodes++;
                     return (cached.Item1, cached.Item3, line);
                 } else if (cached.Item4 == 1) {
                     alpha = Math.Max(alpha, cached.Item3);
@@ -165,6 +179,7 @@ public class MyBot : IChessBot
 
                 if (alpha >= beta) {
                     line[line.Length - depth] = cached.Item1.ToString() + "_c1";
+                    leafNodes++;
                     // Console.WriteLine("Cache alpha-beta " + depth + " " + cached.Item2 + " " + cached.Item4);
                     return (cached.Item1, cached.Item3, line);
                 } else {

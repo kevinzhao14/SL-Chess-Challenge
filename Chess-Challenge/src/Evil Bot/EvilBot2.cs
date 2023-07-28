@@ -1,8 +1,9 @@
 using ChessChallenge.API;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
-public class EvilBot2 : IChessBot
+public class EvilBot : IChessBot
 {
     ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},
@@ -24,53 +25,33 @@ public class EvilBot2 : IChessBot
     int[] pieceValuesEnd = {0, 32, 96, 101, 174, 319, 0};
 
     int nodes = 0;
-    int eval = 0;
 
     // best move, depth, score, type (exact, lower, upper)
     Dictionary<ulong, (Move, int, long, int)> table = new Dictionary<ulong, (Move, int, long, int)>();
 
-    Move[,] killers;
-    int[] killerIndices;
-
-    public Move Think(Board board, Timer timer) {
-        Console.WriteLine("#################### EvilBot2");
+    public Move Think(Board board, Timer timer)
+    {
+        Console.WriteLine("\n\nEvil Bot####################");
         nodes = 0;
-        eval = 0;
-        // int depth = 6;
-        killers = new Move[32, 2];
-        killerIndices = new int[32];
-
-        int movesLeft = (int) Math.Round(board.PlyCount < 90 ? -board.PlyCount / 2 + 50 : 0.05 * board.PlyCount);
-
-        double timeAlloc = timer.MillisecondsRemaining / movesLeft * 0.9;
-
-        (Move, long, Move[]) best = BestMove(board, 1, new Move[1]);
-
-        for (int i = 2; i <= 6; i += 2) {
-            best = BestMove(board, i, new Move[i]);
-        }
-
-        // var best = BestMove(board, depth, -999999999999, 99999999999, new Move[depth]);
+        int depth = 4;
+        var best = BestMove(board, depth, -999999999999, 99999999999, depth % 2 != 0, new Move[depth]);
 
         return best.Item1;
     }
 
     long Eval(Board board) {
-        eval++;
         if (board.IsDraw()) {
             return 0;
         }
 
         long moveScore = 0;
         foreach (PieceList list in board.GetAllPieceLists()) {
-            long score = list.Count * pieceValues[(int) list.TypeOfPieceInList];
-
-            // PST position score
             foreach(Piece piece in list) {
                 Square sq = piece.Square;
+                long score = pieceValues[(int) piece.PieceType];
                 score += ((long) pst[(int) piece.PieceType - 1, piece.IsWhite ? sq.Rank : 7 - sq.Rank] >> (56 - 8 * sq.File) & 0xFF) - 128;
+                moveScore += score * (piece.IsWhite == board.IsWhiteToMove ? 1 : -1);
             }
-            moveScore += score * (list.IsWhitePieceList == board.IsWhiteToMove ? 1 : -1);
         }
 
         if (board.IsInCheckmate()) {
@@ -80,14 +61,13 @@ public class EvilBot2 : IChessBot
         return moveScore;
     }
 
-    (Move, long, Move[]) BestMove(Board board, int depth, Move[] line, long alpha=-999999999999, long beta=99999999999) {
+    (Move, long, Move[]) BestMove(Board board, int depth, long alpha, long beta, bool oddDepth, Move[] line) {
         long origAlpha = alpha;
         Move bestMove = new Move();
         long bestScore = -999999999;
         Move[] bestLine = {};
 
         (Move, int, long, int) cached;
-        List<(Move, int)> moves = new List<(Move, int)>();
 
         if (table.TryGetValue(board.ZobristKey, out cached)) {
             if (cached.Item2 >= depth) {
@@ -105,29 +85,17 @@ public class EvilBot2 : IChessBot
                 }
             } else {
                 // bad depth, use for move-ordering
-                moves.Add((cached.Item1, 100000));
             }
-        } else if (depth >= 4) {
-            // internal iterative deepening
-            cached.Item1 = BestMove(board, 2, new Move[2]).Item1;
-            moves.Add((cached.Item1, 100000));
         }
 
+        // Move[] moves = board.GetLegalMoves();
+
+        List<(Move, int)> moves = new List<(Move, int)>();
 
         foreach (Move move in board.GetLegalMoves()) {
-            if (!cached.Equals(default) && cached.Item1.Equals(move)) {
-                continue;
-            }
-            if (move.Equals(killers[depth, 0]) || move.Equals(killers[depth, 1])) {
-                moves.Add((move, 400));
-                continue;
-            }
             int score = 0;
             if (move.IsCapture) {
-                score += pieceValues[(int) move.CapturePieceType] * 4 - pieceValues[(int) move.MovePieceType];
-            }
-            if (move.IsPromotion) {
-                score += pieceValues[(int) move.PromotionPieceType] - 32;
+                score += pieceValues[(int) move.CapturePieceType] - pieceValues[(int) move.MovePieceType];
             }
             // if (move.IsPromotion) {
             //     score += pieceValues[(int) move.PromotionPieceType] / 8;
@@ -135,13 +103,12 @@ public class EvilBot2 : IChessBot
             // if (move.IsCastles) {
             //     score += 8;
             // }
-            
+
             moves.Add((move, score));
         }
 
-        moves.Sort((a, b) => b.Item2 - a.Item2);
 
-        bool inCheck = board.IsInCheck();
+        moves.Sort((a, b) => b.Item2 - a.Item2);
         
 
         // foreach (var move in moves) {
@@ -156,13 +123,6 @@ public class EvilBot2 : IChessBot
             
             board.MakeMove(move);
 
-            int depthReduction = 1;
-
-            // late move reduction
-            // if (!(depth < 3 || movedata.Item2 >= 400 || move.IsCapture || move.IsPromotion || inCheck || board.IsInCheck())) {
-            //     depthReduction = 2;
-            // }
-
             if (depth == 1 || board.IsInCheckmate() || board.IsDraw()) {
                 score = -Eval(board);
 
@@ -173,12 +133,7 @@ public class EvilBot2 : IChessBot
 
                 // return (move, 100000, moveLine);
             } else {
-                var (m, s, l) = BestMove(board, depth - depthReduction, moveLine, -beta, -alpha);
-
-                // if (depthReduction == 2 && -s > alpha) {
-                //     (m, s, l) = BestMove(board, depth - 1, moveLine, -beta, -alpha);
-                // }
-
+                var (m, s, l) = BestMove(board, depth - 1, -beta, -alpha, oddDepth, moveLine);
                 score = -s;
                 moveLine = l;
 
@@ -187,8 +142,6 @@ public class EvilBot2 : IChessBot
                 //     return (move, 100000, moveLine);
                 // }
             }
-            
-            
 
             board.UndoMove(move);
 
@@ -201,10 +154,6 @@ public class EvilBot2 : IChessBot
             }
 
             if (score >= beta) {
-                if (!killers[depth, 0].Equals(move) && !killers[depth, 1].Equals(move)) {
-                    killers[depth, killerIndices[depth]++] = move;
-                    killerIndices[depth] %= 2;
-                }
                 break;
                 // return (move, score, moveLine);
             }
