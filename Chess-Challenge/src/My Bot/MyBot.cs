@@ -58,9 +58,11 @@ public class MyBot : IChessBot
 
         // int movesLeft = (int) Math.Round(board.PlyCount < 90 ? -board.PlyCount / 2 + 50 : 0.05 * board.PlyCount);
         int plies = board.PlyCount / 2;
-        int movesLeft = plies <= 40 ? -plies + 50 : (5 + (int) (Math.Pow(plies - 60, 2) / (plies <= 60 ? 80 : 512)));
+        
+        // int movesLeft = plies <= 40 ? -plies + 50 : (5 + (int) (Math.Pow(plies - 60, 2) / (plies <= 60 ? 80 : 512)));
+        int movesLeft = 40 + (int) Math.Pow(plies - 50, 2) / (plies <= 50 ? 24 : 128);
 
-        double skillCheck = plies <= 60 ? -((int) Math.Abs(Eval(board, 0)) / 512.0) + 1.1 : 1;
+        double skillCheck = plies <= 60 ? -((int) Math.Abs(Eval(board, 0)) / 512.0) : 1;
 
         if (skillCheck < 0.5) {
             skillCheck = 0.5;
