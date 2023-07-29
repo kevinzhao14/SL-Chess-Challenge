@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-public class EvilBot : IChessBot
+public class EvilBot2 : IChessBot
 {
     ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},
@@ -31,7 +31,7 @@ public class EvilBot : IChessBot
 
     public Move Think(Board board, Timer timer)
     {
-        Console.WriteLine("\n\nEvil Bot####################");
+        Console.WriteLine("\n\nEvil Bot 2 ####################");
         nodes = 0;
         int depth = 4;
         var best = BestMove(board, depth, -999999999999, 99999999999, depth % 2 != 0, new Move[depth]);
