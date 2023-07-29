@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 public class MyBot : IChessBot
 {
-    ulong[,] pst = {
+    private ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},
         {0x5778697379757977, 0x756b7b7f80877b79, 0x777c858487878a7a, 0x7b8286858b87887d, 0x7c8787958e9b8789, 0x6e978e99a1b29c91, 0x64709c8e89988379, 0x3f5d736d985a7a56},
         {0x737f7b787b7b7178, 0x8286868083888d80, 0x80868686858b8784, 0x7e85858a8d858482, 0x7e8287948e8e837f, 0x7a8e91908e948e7f, 0x7686797b8c97876e, 0x758260727670837d},
@@ -20,48 +20,49 @@ public class MyBot : IChessBot
     //     {0x757679717e757972, 0x7978767b7b787475, 0x7b77858283868382, 0x7a8a86908b8c8d88, 0x8187888f938e938c, 0x79828391908c8683, 0x7a878b8e94898a80, 0x7d87878989868387},
     //     {0x6e74797c767b7871, 0x777c818485817e7a, 0x7a7f84878885827d, 0x7a7f87888988837c, 0x7d878889898b8981, 0x83868885878f8f84, 0x7c868586868d8884, 0x67747a7a7c85817a}
     // };
-    int[] pieceValues = {0, 32, 132, 142, 186, 400, 0};
+    private int[] pieceValues = {0, 32, 132, 142, 186, 400, 0};
     // int[] pieceValuesEnd = {0, 32, 96, 101, 174, 319, 0};
 
     // USED VARIABLES
-    bool timeUp = false;
-    int timeAlloc;
-    Timer time;
-    int nodes = 0;
+    private bool timeUp = false;
+    private int timeAlloc;
+    private Timer time;
+    private int nodes = 0;
 
     // DIAGNOSTIC/DEBUG VARIABLES
     // int leafNodes = 0;
     // int eval = 0;
 
     // int totalNodes = 0;
-    // int totalLeafNodes = 0;
     // int totalTime = 0;
+    // int totalLeafNodes = 0;
 
 
     // Transposition table
     // best move, depth, score, type (exact, lower, upper)
-    Dictionary<ulong, (Move, int, long, int)> table = new Dictionary<ulong, (Move, int, long, int)>();
+    private Dictionary<ulong, (Move, int, long, byte)> table = new Dictionary<ulong, (Move, int, long, byte)>();
 
     // Killer moves
-    Move[,] killers;
-    int[] killerIndices;
+    private Move[,] killers;
+    private byte[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
         // Console.WriteLine("-------------------" + board.GetFenString());
 
-        // nodes = 0;
         // leafNodes = 0;
         // eval = 0;
+
+        nodes = 0;
         timeUp = false;
         time = timer;
 
         killers = new Move[32, 2];
-        killerIndices = new int[32];
+        killerIndices = new byte[32];
 
-        int plies = board.PlyCount / 2;
-        int movesLeft = 40 + (int) Math.Pow(plies - 50, 2) / (plies <= 50 ? 24 : 128);
+        int plies = board.PlyCount / 2 - 50;
+        int movesLeft = 40 + plies * plies / (plies <= 0 ? 24 : 128);
         
-        double skillCheck = plies <= 60 ? -((int) Math.Abs(Eval(board, 0)) / 512.0) : 1;
+        double skillCheck = plies <= 10 ? -(Math.Abs(Eval(board, 0)) / 512.0) : 1;
 
         if (skillCheck < 0.5) {
             skillCheck = 0.5;
@@ -110,11 +111,13 @@ public class MyBot : IChessBot
         // totalTime += timer.MillisecondsElapsedThisTurn;
         // Console.WriteLine("BF/NPS: " + (nodes - 1.0) / (nodes - leafNodes) + " " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
         // Console.WriteLine("Total BF/NPS: " + (totalNodes - 1.0) / (totalNodes - totalLeafNodes) + " " + (totalNodes / 1.0 / totalTime * 1000));
+        // Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
+        // Console.WriteLine("Total NPS: " + (totalNodes / 1.0 / totalTime * 1000));
 
         return best.Item1;
     }
 
-    long Eval(Board board, int depth) {
+    private long Eval(Board board, int depth) {
         // eval++;
         if (board.IsDraw()) {
             return 0;
@@ -140,7 +143,7 @@ public class MyBot : IChessBot
     }
 
     // (Move, long, string[]) BestMove(Board board, int depth, string[] line, long alpha=-999999999999, long beta=99999999999) {
-    (Move, long) BestMove(Board board, int depth, long alpha=-999999999999, long beta=99999999999) {
+    private (Move, long) BestMove(Board board, int depth, long alpha=-999999999999, long beta=99999999999) {
         nodes++;
 
         if ((nodes & 4095) == 0 && time.MillisecondsElapsedThisTurn >= timeAlloc) {
@@ -163,7 +166,7 @@ public class MyBot : IChessBot
         long origAlpha = alpha;
         bool inCheck = board.IsInCheck();
 
-        (Move, int, long, int) cached;
+        (Move, int, long, byte) cached;
         List<(Move, int)> moves = new List<(Move, int)>();
 
         if (table.TryGetValue(board.ZobristKey, out cached)) {
@@ -230,7 +233,6 @@ public class MyBot : IChessBot
         long bestScore = -999999999;
 
         // string[] bestLine = {"empty"};
-        string[] bestLine;
 
         // if (moves.Count == 0) {
         //     Console.WriteLine("\nNo moves " + string.Join(", ", line) + " " + board.GetLegalMoves().Length + " " + depth + " " + board.IsInCheckmate() + "\n");
@@ -247,15 +249,13 @@ public class MyBot : IChessBot
             
             board.MakeMove(move);
 
-            int depthReduction = 1;
-
             // late move reduction
             // if (!(depth < 3 || movedata.Item2 >= 400 || move.IsCapture || move.IsPromotion || inCheck || board.IsInCheck())) {
             //     depthReduction = 2;
             // }
 
             // var (m, s, l) = BestMove(board, depth - depthReduction, moveLine, -beta, -alpha);
-            var (m, s) = BestMove(board, depth - depthReduction, -beta, -alpha);
+            var (m, s) = BestMove(board, depth - 1, -beta, -alpha);
 
             board.UndoMove(move);
 
@@ -288,7 +288,7 @@ public class MyBot : IChessBot
             }
         }
 
-        var entry = (bestMove, depth, bestScore, bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0));
+        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)));
 
         if (table.TryGetValue(board.ZobristKey, out cached)) {
             table[board.ZobristKey] = entry;
