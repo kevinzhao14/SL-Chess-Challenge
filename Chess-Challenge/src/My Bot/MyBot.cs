@@ -20,14 +20,14 @@ public class MyBot : IChessBot
     //     {0x757679717e757972, 0x7978767b7b787475, 0x7b77858283868382, 0x7a8a86908b8c8d88, 0x8187888f938e938c, 0x79828391908c8683, 0x7a878b8e94898a80, 0x7d87878989868387},
     //     {0x6e74797c767b7871, 0x777c818485817e7a, 0x7a7f84878885827d, 0x7a7f87888988837c, 0x7d878889898b8981, 0x83868885878f8f84, 0x7c868586868d8884, 0x67747a7a7c85817a}
     // };
-    private int[] pieceValues = {0, 32, 132, 142, 186, 400, 0};
+    private int[] pieceValues = {0, 32, 132, 142, 186, 400, 0}, killerIndices;
     // int[] pieceValuesEnd = {0, 32, 96, 101, 174, 319, 0};
 
     // USED VARIABLES
-    private bool timeUp = false;
-    private int timeAlloc;
+    private bool timeUp;
+    private int timeAlloc, nodes;
     private Timer time;
-    private int nodes = 0;
+    // private int nodes;
 
     // DIAGNOSTIC/DEBUG VARIABLES
     // int leafNodes = 0;
@@ -40,11 +40,11 @@ public class MyBot : IChessBot
 
     // Transposition table
     // best move, depth, score, type (exact, lower, upper)
-    private Dictionary<ulong, (Move, int, long, byte)> table = new Dictionary<ulong, (Move, int, long, byte)>();
+    private Dictionary<ulong, (Move, int, long, byte)> table = new();
 
     // Killer moves
     private Move[,] killers;
-    private byte[] killerIndices;
+    // private int[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
         // Console.WriteLine("-------------------" + board.GetFenString());
@@ -52,52 +52,74 @@ public class MyBot : IChessBot
         // leafNodes = 0;
         // eval = 0;
 
-        nodes = 0;
-        timeUp = false;
-        time = timer;
+        // nodes = 0;
+        // timeUp = false;
+        // time = timer;
 
-        killers = new Move[32, 2];
-        killerIndices = new byte[32];
+
+        // killers = new Move[32, 2];
+        // killerIndices = new int[32];
 
         int plies = board.PlyCount / 2 - 50;
-        int movesLeft = 40 + plies * plies / (plies <= 0 ? 24 : 128);
         
-        double skillCheck = plies <= 10 ? -(Math.Abs(Eval(board, 0)) / 512.0) : 1;
+        // adjust time spent/predicted moves remaining based on board evaluation - should spend
+        // more time when losing/winning by a good amount to improve/not throw
+        // double skillCheck = Math.Max(0.5, plies <= 10 ? Math.Abs(Eval(board, 0)) / -512.0 + 1 : 1);
 
-        if (skillCheck < 0.5) {
-            skillCheck = 0.5;
-        }
+        (
+            nodes, 
+            timeUp, 
+            time, 
+            killers, 
+            killerIndices,
+            timeAlloc
+        ) = (
+            0, 
+            false, 
+            timer, 
+            new Move[32, 2], 
+            new int[32],
+            (int) (timer.MillisecondsRemaining 
+                / (40 + plies * plies / (plies <= 0 ? 24 : 128)) 
+                / Math.Max(0.5, plies <= 10 ? Math.Abs(Eval(board, 0)) / -512.0 + 1 : 1) 
+                * 0.9)
+        );
 
-        timeAlloc = (int) (timer.MillisecondsRemaining / movesLeft / skillCheck * 0.9);
+        // INFO: int movesLeft = 40 + plies * plies / (plies <= 0 ? 24 : 128);
+        // timeAlloc = (int) (timer.MillisecondsRemaining / (40 + plies * plies / (plies <= 0 ? 24 : 128)) / skillCheck * 0.9);
+
         // Console.WriteLine("skillcheck " + skillCheck + " " + plies + " " + movesLeft + " " + timeAlloc + " " + timer.MillisecondsRemaining);
 
         // (Move, long, string[]) best = BestMove(board, 1, new string[1]);
-        (Move, long) best = BestMove(board, 1);
+        // var best = BestMove(board, 1);  // (Move, long) - bestMove, evalScore
+        (Move, long) best = new(); // 1 less token than ^
 
         for (int i = 2; i <= 32; i += 2) {
             // Console.WriteLine("Running depth " + i);
 
             // var result = BestMove(board, i, new string[i]);
-            var result = BestMove(board, i);
+            var result = BestMove(board, i); // (Move, long) - bestMove, evalScore
 
             if (!result.Item1.Equals(Move.NullMove)) {
                 best = result;
 
                 // finish on checkmate
-                if (result.Item2 >= 100000) {
+                if (result.Item2 >= 100000)
+                // if (result.Item2 >= 100000) {
                     // Console.WriteLine("Checkmate found");
                     break;
-                }
+                // }
             } 
+
             // else {
             //     Console.WriteLine("Cancelled");
             // }
 
             // Console.WriteLine("- Best: " + best.Item2 + " " + string.Join(", ", best.Item3));
+            // Console.WriteLine("- Best: " + best.Item2 + " " + best.Item1);
 
-            if (timeUp) {
+            if (timeUp) 
                 break;
-            }
         }
 
         // Console.WriteLine("\nStats:");
@@ -105,6 +127,7 @@ public class MyBot : IChessBot
         // Console.WriteLine("Nodes checked: " + nodes + " " + leafNodes + " " + eval);
         // Console.WriteLine("TABLE: " + table.Count);
         // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + string.Join(", ", best.Item3));
+        // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1);
 
         // totalNodes += nodes;
         // totalLeafNodes += leafNodes;
@@ -119,21 +142,22 @@ public class MyBot : IChessBot
 
     private long Eval(Board board, int depth) {
         // eval++;
-        if (board.IsDraw()) {
+
+        if (board.IsDraw())
             return 0;
-        }
-        if (board.IsInCheckmate()) {
+
+        if (board.IsInCheckmate())
             return -100000 - depth;
-        }
+        
 
         long moveScore = 0;
         foreach (PieceList list in board.GetAllPieceLists()) {
             long score = list.Count * pieceValues[(int) list.TypeOfPieceInList];
 
             // PST position score
-            foreach(Piece piece in list) {
+            foreach (Piece piece in list) {
                 Square sq = piece.Square;
-                score += ((long) pst[(int) piece.PieceType - 1, piece.IsWhite ? sq.Rank : 7 - sq.Rank] >> (56 - 8 * sq.File) & 0xFF) - 128;
+                score += ((long) pst[(int) piece.PieceType - 1, piece.IsWhite ? sq.Rank : 7 - sq.Rank] >> 56 - 8 * sq.File & 0xFF) - 128;
             }
             
             moveScore += score * (list.IsWhitePieceList == board.IsWhiteToMove ? 1 : -1);
@@ -146,56 +170,68 @@ public class MyBot : IChessBot
     private (Move, long) BestMove(Board board, int depth, long alpha=-999999999999, long beta=99999999999) {
         nodes++;
 
-        if ((nodes & 4095) == 0 && time.MillisecondsElapsedThisTurn >= timeAlloc) {
+        if ((nodes & 4095) == 0 && time.MillisecondsElapsedThisTurn >= timeAlloc) 
             // Console.WriteLine("Interrupt " + timeAlloc + " " + time.MillisecondsElapsedThisTurn);
             timeUp = true;
-        }
         
-        if (timeUp) {
+        if (timeUp) 
             // return (new Move(), 0, line);
-            return (new Move(), 0);
-        }
+            return new();
 
-        if (depth == 0 || board.IsInCheckmate() || board.IsDraw()) {
+        if (depth == 0 || board.IsInCheckmate() || board.IsDraw())
             // leafNodes++;
 
             // return (Move.NullMove, Eval(board, depth), line);
-            return (Move.NullMove, Eval(board, depth));
-        }
+            return (new(), Eval(board, depth));
 
-        long origAlpha = alpha;
-        bool inCheck = board.IsInCheck();
+        // long origAlpha = alpha;
+        // bool inCheck = board.IsInCheck();
 
         (Move, int, long, byte) cached;
-        List<(Move, int)> moves = new List<(Move, int)>();
+        // List<(Move, int)> moves = new();
 
-        if (table.TryGetValue(board.ZobristKey, out cached)) {
+        // var key = board.ZobristKey;
+
+        var (
+            origAlpha, 
+            key, 
+            bestMove, 
+            bestScore,
+            moves
+        ) = (
+            alpha, 
+            board.ZobristKey, 
+            Move.NullMove, 
+            -999999999L,
+            new List<(Move, int)>()
+        );
+
+        if (table.TryGetValue(key, out cached)) {
             if (cached.Item2 >= depth) {
-                if (cached.Item4 == 0) {
+                if (cached.Item4 == 0)
                     // line[line.Length - depth] = cached.Item1.ToString() + "_c0";
                     // leafNodes++;
 
                     // return (cached.Item1, cached.Item3, line);
                     return (cached.Item1, cached.Item3);
-                } else if (cached.Item4 == 1) {
+                else if (cached.Item4 == 1)
                     alpha = Math.Max(alpha, cached.Item3);
-                } else {
+                else
                     beta = Math.Min(beta, cached.Item3);
-                }
 
-                if (alpha >= beta) {
+                if (alpha >= beta)
                     // line[line.Length - depth] = cached.Item1.ToString() + "_c1";
                     // leafNodes++;
 
                     // return (cached.Item1, cached.Item3, line);
                     return (cached.Item1, cached.Item3);
-                } else {
+                else
                     cached.Item1 = Move.NullMove;
-                }
-            } else {
+                
+            } else
                 // bad depth, use for move-ordering
                 moves.Add((cached.Item1, 100000));
-            }
+            
         } else if (depth >= 4) {
             // internal iterative deepening
             // cached.Item1 = BestMove(board, 2, new string[2]).Item1;
@@ -209,28 +245,29 @@ public class MyBot : IChessBot
         // }
 
         foreach (Move move in board.GetLegalMoves()) {
-            if (!cached.Equals(default) && cached.Item1.Equals(move)) {
+            if (cached.Item1.Equals(move))
                 continue;
-            }
+            
             if (move.Equals(killers[depth, 0]) || move.Equals(killers[depth, 1])) {
                 moves.Add((move, 400));
                 continue;
             }
+
             int score = 0;
-            if (move.IsCapture) {
+            if (move.IsCapture) 
                 score += pieceValues[(int) move.CapturePieceType] * 4 - pieceValues[(int) move.MovePieceType];
-            }
-            if (move.IsPromotion) {
+            
+            if (move.IsPromotion)
                 score += pieceValues[(int) move.PromotionPieceType] - 32;
-            }
+            
             
             moves.Add((move, score));
         }
 
         moves.Sort((a, b) => b.Item2 - a.Item2);
 
-        Move bestMove = new Move();
-        long bestScore = -999999999;
+        // Move bestMove = new();
+        // long bestScore = -999999999;
 
         // string[] bestLine = {"empty"};
 
@@ -245,8 +282,6 @@ public class MyBot : IChessBot
             // string[] moveLine = (string[]) line.Clone();
             // moveLine[moveLine.Length - depth] = move.ToString();
 
-            long score = 0;
-            
             board.MakeMove(move);
 
             // late move reduction
@@ -255,20 +290,19 @@ public class MyBot : IChessBot
             // }
 
             // var (m, s, l) = BestMove(board, depth - depthReduction, moveLine, -beta, -alpha);
-            var (m, s) = BestMove(board, depth - 1, -beta, -alpha);
+            long score = -BestMove(board, depth - 1, -beta, -alpha).Item2;
 
             board.UndoMove(move);
 
-            if (timeUp) {
+            if (timeUp)
                 // return (bestMove, bestScore, bestLine);
                 return (bestMove, bestScore);
-            }
 
             // if (depthReduction == 2 && -s > alpha) {
             //     (m, s, l) = BestMove(board, depth - 1, moveLine, -beta, -alpha);
             // }
 
-            score = -s;
+            // long score = -s;
             // moveLine = l;
 
             if (score > bestScore) {
@@ -290,10 +324,10 @@ public class MyBot : IChessBot
 
         var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)));
 
-        if (table.TryGetValue(board.ZobristKey, out cached)) {
-            table[board.ZobristKey] = entry;
+        if (table.TryGetValue(key, out cached)) {
+            table[key] = entry;
         } else {
-            table.Add(board.ZobristKey, entry);
+            table.Add(key, entry);
         }
 
         // return (bestMove, bestScore, bestLine);
