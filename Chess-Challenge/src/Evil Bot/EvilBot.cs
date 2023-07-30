@@ -1,54 +1,36 @@
 ﻿using ChessChallenge.API;
 using System;
+namespace ChessChallenge.Example;
 
-namespace ChessChallenge.Example
+public class EvilBot : IChessBot
 {
-    // A simple bot that can spot mate in one, and always captures the most valuable piece it can.
-    // Plays randomly otherwise.
-    public class EvilBot1 : IChessBot
+    Board testBoard;
+    public Move Think(Board board, Timer timer)
     {
-        // Piece values: null, pawn, knight, bishop, rook, queen, king
-        int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
+        string fen = "r3k2r/1ppb1ppp/2n1p3/1q6/3PN3/2PPp3/PpQ2PPP/R3K2R w KQkq - 0 16";
+        testBoard = Board.CreateBoardFromFEN(fen);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Search(5);
+        sw.Stop();
+        Console.WriteLine(sw.ElapsedMilliseconds + " ms.");
+        return board.GetLegalMoves()[0];
+    }
 
-        public Move Think(Board board, Timer timer)
+    void Search(int depthRemaining)
+    {
+        if (depthRemaining == 0)
         {
-            Move[] allMoves = board.GetLegalMoves();
-
-            // Pick a random move to play if nothing better is found
-            Random rng = new();
-            Move moveToPlay = allMoves[rng.Next(allMoves.Length)];
-            int highestValueCapture = 0;
-
-            foreach (Move move in allMoves)
-            {
-                // Always play checkmate in one
-                if (MoveIsCheckmate(board, move))
-                {
-                    moveToPlay = move;
-                    break;
-                }
-
-                // Find highest value capture
-                Piece capturedPiece = board.GetPiece(move.TargetSquare);
-                int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
-
-                if (capturedPieceValue > highestValueCapture)
-                {
-                    moveToPlay = move;
-                    highestValueCapture = capturedPieceValue;
-                }
-            }
-
-            return moveToPlay;
+            return;
         }
 
-        // Test if this move gives checkmate
-        bool MoveIsCheckmate(Board board, Move move)
+        Span<Move> moves = stackalloc Move[218];
+        testBoard.GetLegalMovesNonAlloc(ref moves);
+
+        foreach (var m in moves)
         {
-            board.MakeMove(move);
-            bool isMate = board.IsInCheckmate();
-            board.UndoMove(move);
-            return isMate;
+            testBoard.MakeMove(m);
+            Search(depthRemaining - 1);
+            testBoard.UndoMove(m);
         }
     }
 }
