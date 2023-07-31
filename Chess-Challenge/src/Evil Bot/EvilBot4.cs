@@ -1,8 +1,8 @@
-﻿using ChessChallenge.API;
+using ChessChallenge.API;
 using System;
 using System.Collections.Generic;
 
-public class MyBot : IChessBot
+public class EvilBot : IChessBot
 {
     private ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},
@@ -47,7 +47,8 @@ public class MyBot : IChessBot
     // private int[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
-        Console.WriteLine("-------------------" + board.GetFenString());
+      Console.WriteLine("\n\nEvil Bot 4 ####################");
+        // Console.WriteLine("-------------------" + board.GetFenString());
 
         // leafNodes = 0;
         // eval = 0;
@@ -77,8 +78,8 @@ public class MyBot : IChessBot
             0, 
             false, 
             timer, 
-            new Move[64, 2], 
-            new int[64],
+            new Move[32, 2], 
+            new int[32],
             (int) (timer.MillisecondsRemaining 
                 / (40 + plies * plies / (plies <= 0 ? 24 : 128)) 
                 / Math.Max(0.5, plies <= 10 ? Math.Abs(Eval(board, 0)) / -512.0 + 1 : 1) 
@@ -244,11 +245,11 @@ public class MyBot : IChessBot
         //     Console.WriteLine("\n######### ERROR: no valid moves\n");
         // }
 
-        Span<Move> legalMoves = stackalloc Move[218];
-        board.GetLegalMovesNonAlloc(ref legalMoves);
+        // Span<Move> legalMoves = stackalloc Move[218];
+        // board.GetLegalMovesNonAlloc(ref legalMoves);
 
-        // foreach (Move move in board.GetLegalMoves()) {
-        foreach (Move move in legalMoves) {
+        foreach (Move move in board.GetLegalMoves()) {
+        // foreach (Move move in legalMoves) {
             if (cached.Item1.Equals(move))
                 continue;
             

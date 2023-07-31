@@ -2,7 +2,7 @@
 using System;
 namespace ChessChallenge.Example;
 
-public class EvilBot : IChessBot
+public class EvilBot1 : IChessBot
 {
     Board testBoard;
     public Move Think(Board board, Timer timer)
