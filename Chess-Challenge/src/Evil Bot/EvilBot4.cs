@@ -2,7 +2,7 @@ using ChessChallenge.API;
 using System;
 using System.Collections.Generic;
 
-public class EvilBot : IChessBot
+public class EvilBot4 : IChessBot
 {
     private ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},

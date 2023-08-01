@@ -244,11 +244,11 @@ public class MyBot : IChessBot
         //     Console.WriteLine("\n######### ERROR: no valid moves\n");
         // }
 
-        Span<Move> legalMoves = stackalloc Move[218];
-        board.GetLegalMovesNonAlloc(ref legalMoves);
+        // Span<Move> legalMoves = stackalloc Move[218];
+        // board.GetLegalMovesNonAlloc(ref legalMoves);
 
-        // foreach (Move move in board.GetLegalMoves()) {
-        foreach (Move move in legalMoves) {
+        foreach (Move move in board.GetLegalMoves()) {
+        // foreach (Move move in legalMoves) {
             if (cached.Item1.Equals(move))
                 continue;
             
