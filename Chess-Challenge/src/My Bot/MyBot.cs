@@ -47,7 +47,7 @@ public class MyBot : IChessBot
     // private int[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
-        Console.WriteLine("-------------------" + board.GetFenString());
+        Console.WriteLine("-------------------" + board.GetFenString()); // #DEBUG
 
         // leafNodes = 0;
         // eval = 0;
@@ -95,7 +95,7 @@ public class MyBot : IChessBot
         (Move, long) best = new(); // 1 less token than ^
 
         for (int i = 2; i <= 32; i += 2) {
-            Console.WriteLine("Running depth " + i);
+            Console.WriteLine("Running depth " + i); // #DEBUG
 
             // var result = BestMove(board, i, new string[i]);
             var result = BestMove(board, i); // (Move, long) - bestMove, evalScore
@@ -111,31 +111,31 @@ public class MyBot : IChessBot
                 // }
             } 
 
-            else {
-                Console.WriteLine("Cancelled");
-            }
+            else { // #DEBUG
+                Console.WriteLine("Cancelled"); // #DEBUG
+            } // #DEBUG
 
             // Console.WriteLine("- Best: " + best.Item2 + " " + string.Join(", ", best.Item3));
-            Console.WriteLine("- Best: " + best.Item2 + " " + best.Item1);
+            Console.WriteLine("- Best: " + best.Item2 + " " + best.Item1); // #DEBUG
 
             if (timeUp) 
                 break;
         }
 
         // Console.WriteLine("\nStats:");
-        // Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn);
+        Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn); // #DEBUG
         // Console.WriteLine("Nodes checked: " + nodes + " " + leafNodes + " " + eval);
-        // Console.WriteLine("TABLE: " + table.Count);
+        Console.WriteLine("TABLE: " + table.Count); // #DEBUG
         // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + string.Join(", ", best.Item3));
-        // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1);
+        Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1); // #DEBUG
 
-        totalNodes += nodes;
-        totalTime += timer.MillisecondsElapsedThisTurn;
+        totalNodes += nodes; // #DEBUG
+        totalTime += timer.MillisecondsElapsedThisTurn; // #DEBUG
         // totalLeafNodes += leafNodes;
         // Console.WriteLine("BF/NPS: " + (nodes - 1.0) / (nodes - leafNodes) + " " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
         // Console.WriteLine("Total BF/NPS: " + (totalNodes - 1.0) / (totalNodes - totalLeafNodes) + " " + (totalNodes / 1.0 / totalTime * 1000));
-        Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
-        Console.WriteLine("Total NPS: " + (totalNodes / 1.0 / totalTime * 1000));
+        Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000)); // #DEBUG
+        Console.WriteLine("Total NPS: " + (totalNodes / 1.0 / totalTime * 1000)); // #DEBUG
 
         return best.Item1;
     }
