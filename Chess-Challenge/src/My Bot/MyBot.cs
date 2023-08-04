@@ -25,7 +25,7 @@ public class MyBot : IChessBot
 
     // USED VARIABLES
     private bool timeUp;
-    private int timeAlloc, nodes;
+    private int timeAlloc, nodes, searchDepth;
     private Timer time;
     // private int nodes;
 
@@ -33,14 +33,14 @@ public class MyBot : IChessBot
     // int leafNodes = 0;
     // int eval = 0;
 
-    int totalNodes = 0;
-    int totalTime = 0;
+    int totalNodes = 0; // #DEBUG
+    int totalTime = 0; // #DEBUG
     // int totalLeafNodes = 0;
 
 
     // Transposition table
     // best move, depth, score, type (exact, lower, upper)
-    private Dictionary<ulong, (Move, int, long, byte)> table = new();
+    private Dictionary<ulong, (Move, int, long, byte, bool)> table = new();
 
     // Killer moves
     private Move[,] killers;
@@ -94,11 +94,11 @@ public class MyBot : IChessBot
         // var best = BestMove(board, 1);  // (Move, long) - bestMove, evalScore
         (Move, long) best = new(); // 1 less token than ^
 
-        for (int i = 2; i <= 32; i += 2) {
-            Console.WriteLine("Running depth " + i); // #DEBUG
+        for (searchDepth = 2; searchDepth <= 32; searchDepth += 2) {
+            Console.WriteLine("Running depth " + searchDepth); // #DEBUG
 
             // var result = BestMove(board, i, new string[i]);
-            var result = BestMove(board, i); // (Move, long) - bestMove, evalScore
+            var result = BestMove(board, searchDepth); // (Move, long) - bestMove, evalScore
 
             if (!result.Item1.Equals(Move.NullMove)) {
                 best = result;
@@ -144,7 +144,7 @@ public class MyBot : IChessBot
         // eval++;
 
         if (board.IsDraw())
-            return 0;
+            return depth % 2 == 0 ? -64 : 64;
 
         if (board.IsInCheckmate())
             return -100000 - depth;
@@ -167,7 +167,7 @@ public class MyBot : IChessBot
     }
 
     // (Move, long, string[]) BestMove(Board board, int depth, string[] line, long alpha=-999999999999, long beta=99999999999) {
-    private (Move, long) BestMove(Board board, int depth, long alpha=-999999999999, long beta=99999999999) {
+    private (Move, long) BestMove(Board board, int depth, long alpha=-999999999, long beta=999999999) {
         nodes++;
 
         if ((nodes & 4095) == 0 && time.MillisecondsElapsedThisTurn >= timeAlloc) 
@@ -187,7 +187,7 @@ public class MyBot : IChessBot
         // long origAlpha = alpha;
         // bool inCheck = board.IsInCheck();
 
-        (Move, int, long, byte) cached;
+        (Move, int, long, byte, bool) cached;
         // List<(Move, int)> moves = new();
 
         // var key = board.ZobristKey;
@@ -213,7 +213,10 @@ public class MyBot : IChessBot
                     // leafNodes++;
 
                     // return (cached.Item1, cached.Item3, line);
-                    return (cached.Item1, cached.Item3);
+
+                    if (!cached.Item5) {
+                        return (cached.Item1, cached.Item3);
+                    }
                 else if (cached.Item4 == 1)
                     alpha = Math.Max(alpha, cached.Item3);
                 else
@@ -326,7 +329,7 @@ public class MyBot : IChessBot
             }
         }
 
-        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)));
+        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)), depth == searchDepth);
 
         if (table.TryGetValue(key, out cached)) {
             table[key] = entry;
