@@ -72,6 +72,7 @@ public class EvilBot3 : IChessBot
 
         for (int i = 2; i <= 32; i += 2) {
             searchDepth = i;
+            Console.WriteLine("Searching " + i);
             var result = BestMove(board, i, new string[i]);
 
             if (!result.Item1.Equals(Move.NullMove)) {
@@ -82,6 +83,7 @@ public class EvilBot3 : IChessBot
                     break;
                 }
             } else {
+                Console.WriteLine("Cancelled");
             }
 
 

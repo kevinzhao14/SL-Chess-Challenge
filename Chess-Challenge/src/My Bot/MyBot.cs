@@ -40,14 +40,16 @@ public class MyBot : IChessBot
 
     // Transposition table
     // best move, depth, score, type (exact, lower, upper)
-    private Dictionary<ulong, (Move, int, long, byte, bool)> table = new();
+    // private Dictionary<ulong, (Move, int, long, byte, bool)> table = new();
+    private const ulong tMask = 0x7FFFFF;
+    private (Move, int, long, byte, bool, ulong)[] table = new (Move, int, long, byte, bool, ulong)[tMask + 1];
 
     // Killer moves
     private Move[,] killers;
     // private int[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
-        Console.WriteLine("-------------------" + board.GetFenString()); // #DEBUG
+        Console.WriteLine("\n-------------------" + board.GetFenString()); // #DEBUG
 
         // leafNodes = 0;
         // eval = 0;
@@ -60,7 +62,7 @@ public class MyBot : IChessBot
         // killers = new Move[32, 2];
         // killerIndices = new int[32];
 
-        int plies = board.PlyCount / 2 - 50;
+        int plies = board.PlyCount / 2 - 55;
         
         // adjust time spent/predicted moves remaining based on board evaluation - should spend
         // more time when losing/winning by a good amount to improve/not throw
@@ -80,10 +82,12 @@ public class MyBot : IChessBot
             new Move[64, 2], 
             new int[64],
             (int) (timer.MillisecondsRemaining 
-                / (40 + plies * plies / (plies <= 0 ? 24 : 128)) 
-                / Math.Max(0.5, plies <= 10 ? Math.Abs(Eval(board, 0)) / -512.0 + 1 : 1) 
+                / (40 + plies * plies / (plies <= 0 ? 32 : 256)) 
+                / Math.Max(0.25, plies <= 5 ? Math.Abs(Eval(board, 0)) / -256.0 + 1 : 1) 
                 * 0.9)
         );
+
+        Console.WriteLine("Skillcheck " + Eval(board, 0) + " " + Math.Max(0.25, plies <= 5 ? Math.Abs(Eval(board, 0)) / -256.0 + 1 : 1)); // #DEBUG
 
         // INFO: int movesLeft = 40 + plies * plies / (plies <= 0 ? 24 : 128);
         // timeAlloc = (int) (timer.MillisecondsRemaining / (40 + plies * plies / (plies <= 0 ? 24 : 128)) / skillCheck * 0.9);
@@ -94,7 +98,7 @@ public class MyBot : IChessBot
         // var best = BestMove(board, 1);  // (Move, long) - bestMove, evalScore
         (Move, long) best = new(); // 1 less token than ^
 
-        for (searchDepth = 2; searchDepth <= 32; searchDepth += 2) {
+        for (searchDepth = 1; searchDepth <= 32; searchDepth += 1) {
             Console.WriteLine("Running depth " + searchDepth); // #DEBUG
 
             // var result = BestMove(board, i, new string[i]);
@@ -125,7 +129,8 @@ public class MyBot : IChessBot
         // Console.WriteLine("\nStats:");
         Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn); // #DEBUG
         // Console.WriteLine("Nodes checked: " + nodes + " " + leafNodes + " " + eval);
-        Console.WriteLine("TABLE: " + table.Count); // #DEBUG
+        Console.WriteLine("Nodes checked: " + nodes); // #DEBUG
+        // Console.WriteLine("TABLE: " + table.Count); // #DEBUG
         // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + string.Join(", ", best.Item3));
         Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1); // #DEBUG
 
@@ -187,7 +192,6 @@ public class MyBot : IChessBot
         // long origAlpha = alpha;
         // bool inCheck = board.IsInCheck();
 
-        (Move, int, long, byte, bool) cached;
         // List<(Move, int)> moves = new();
 
         // var key = board.ZobristKey;
@@ -206,7 +210,9 @@ public class MyBot : IChessBot
             new List<(Move, int)>()
         );
 
-        if (table.TryGetValue(key, out cached)) {
+        var cached = table[key & tMask];
+
+        if (cached.Item6 == key) {
             if (cached.Item2 >= depth) {
                 if (cached.Item4 == 0)
                     // line[line.Length - depth] = cached.Item1.ToString() + "_c0";
@@ -329,13 +335,8 @@ public class MyBot : IChessBot
             }
         }
 
-        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)), depth == searchDepth);
-
-        if (table.TryGetValue(key, out cached)) {
-            table[key] = entry;
-        } else {
-            table.Add(key, entry);
-        }
+        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)), depth == searchDepth, key);
+        table[key & tMask] = entry;
 
         // return (bestMove, bestScore, bestLine);
         return (bestMove, bestScore);

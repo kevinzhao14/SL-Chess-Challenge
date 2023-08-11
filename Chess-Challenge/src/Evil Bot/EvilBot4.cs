@@ -2,7 +2,7 @@ using ChessChallenge.API;
 using System;
 using System.Collections.Generic;
 
-public class EvilBot4 : IChessBot
+public class EvilBot : IChessBot
 {
     private ulong[,] pst = {
         {0x8080808080808080, 0x728078777a898f77, 0x767e7e7c81818d7b, 0x757f7e8587828476, 0x7b85828889858777, 0x7e838a8c99968a78, 0xa6b498a59bb18d7c, 0x8080808080808080},
@@ -25,7 +25,7 @@ public class EvilBot4 : IChessBot
 
     // USED VARIABLES
     private bool timeUp;
-    private int timeAlloc, nodes;
+    private int timeAlloc, nodes, searchDepth;
     private Timer time;
     // private int nodes;
 
@@ -33,22 +33,23 @@ public class EvilBot4 : IChessBot
     // int leafNodes = 0;
     // int eval = 0;
 
-    int totalNodes = 0;
-    int totalTime = 0;
+    int totalNodes = 0; // #DEBUG
+    int totalTime = 0; // #DEBUG
     // int totalLeafNodes = 0;
 
 
     // Transposition table
     // best move, depth, score, type (exact, lower, upper)
-    private Dictionary<ulong, (Move, int, long, byte)> table = new();
+    // private Dictionary<ulong, (Move, int, long, byte, bool)> table = new();
+    private const ulong tMask = 0x7FFFFF;
+    private (Move, int, long, byte, bool, ulong)[] table = new (Move, int, long, byte, bool, ulong)[tMask + 1];
 
     // Killer moves
     private Move[,] killers;
     // private int[] killerIndices;
 
     public Move Think(Board board, Timer timer) {
-      Console.WriteLine("\n\nEvil Bot 4 ####################");
-        // Console.WriteLine("-------------------" + board.GetFenString());
+        Console.WriteLine("\nEvil Bot############"); // #DEBUG
 
         // leafNodes = 0;
         // eval = 0;
@@ -61,7 +62,7 @@ public class EvilBot4 : IChessBot
         // killers = new Move[32, 2];
         // killerIndices = new int[32];
 
-        int plies = board.PlyCount / 2 - 50;
+        int plies = board.PlyCount / 2 - 55;
         
         // adjust time spent/predicted moves remaining based on board evaluation - should spend
         // more time when losing/winning by a good amount to improve/not throw
@@ -78,13 +79,15 @@ public class EvilBot4 : IChessBot
             0, 
             false, 
             timer, 
-            new Move[32, 2], 
-            new int[32],
+            new Move[64, 2], 
+            new int[64],
             (int) (timer.MillisecondsRemaining 
-                / (40 + plies * plies / (plies <= 0 ? 24 : 128)) 
-                / Math.Max(0.5, plies <= 10 ? Math.Abs(Eval(board, 0)) / -512.0 + 1 : 1) 
+                / (40 + plies * plies / (plies <= 0 ? 32 : 256)) 
+                / Math.Max(0.25, plies <= 5 ? Math.Abs(Eval(board, 0)) / -256.0 + 1 : 1) 
                 * 0.9)
         );
+
+        Console.WriteLine("Skillcheck " + Eval(board, 0) + " " + Math.Max(0.25, plies <= 5 ? Math.Abs(Eval(board, 0)) / -256.0 + 1 : 1)); // #DEBUG
 
         // INFO: int movesLeft = 40 + plies * plies / (plies <= 0 ? 24 : 128);
         // timeAlloc = (int) (timer.MillisecondsRemaining / (40 + plies * plies / (plies <= 0 ? 24 : 128)) / skillCheck * 0.9);
@@ -95,11 +98,11 @@ public class EvilBot4 : IChessBot
         // var best = BestMove(board, 1);  // (Move, long) - bestMove, evalScore
         (Move, long) best = new(); // 1 less token than ^
 
-        for (int i = 2; i <= 32; i += 2) {
-            Console.WriteLine("Running depth " + i);
+        for (searchDepth = 2; searchDepth <= 32; searchDepth += 2) {
+            Console.WriteLine("Running depth " + searchDepth); // #DEBUG
 
             // var result = BestMove(board, i, new string[i]);
-            var result = BestMove(board, i); // (Move, long) - bestMove, evalScore
+            var result = BestMove(board, searchDepth); // (Move, long) - bestMove, evalScore
 
             if (!result.Item1.Equals(Move.NullMove)) {
                 best = result;
@@ -112,31 +115,32 @@ public class EvilBot4 : IChessBot
                 // }
             } 
 
-            else {
-                Console.WriteLine("Cancelled");
-            }
+            else { // #DEBUG
+                Console.WriteLine("Cancelled"); // #DEBUG
+            } // #DEBUG
 
             // Console.WriteLine("- Best: " + best.Item2 + " " + string.Join(", ", best.Item3));
-            Console.WriteLine("- Best: " + best.Item2 + " " + best.Item1);
+            Console.WriteLine("- Best: " + best.Item2 + " " + best.Item1); // #DEBUG
 
             if (timeUp) 
                 break;
         }
 
         // Console.WriteLine("\nStats:");
-        // Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn);
+        Console.WriteLine("Time: " + timeAlloc + " " + timer.MillisecondsElapsedThisTurn); // #DEBUG
         // Console.WriteLine("Nodes checked: " + nodes + " " + leafNodes + " " + eval);
-        // Console.WriteLine("TABLE: " + table.Count);
+        Console.WriteLine("Nodes checked: " + nodes); // #DEBUG
+        // Console.WriteLine("TABLE: " + table.Count); // #DEBUG
         // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + string.Join(", ", best.Item3));
-        // Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1);
+        Console.WriteLine("(" + best.Item2 / 32.0 + ") Line: " + best.Item1); // #DEBUG
 
-        totalNodes += nodes;
-        totalTime += timer.MillisecondsElapsedThisTurn;
+        totalNodes += nodes; // #DEBUG
+        totalTime += timer.MillisecondsElapsedThisTurn; // #DEBUG
         // totalLeafNodes += leafNodes;
         // Console.WriteLine("BF/NPS: " + (nodes - 1.0) / (nodes - leafNodes) + " " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
         // Console.WriteLine("Total BF/NPS: " + (totalNodes - 1.0) / (totalNodes - totalLeafNodes) + " " + (totalNodes / 1.0 / totalTime * 1000));
-        Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000));
-        Console.WriteLine("Total NPS: " + (totalNodes / 1.0 / totalTime * 1000));
+        Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000)); // #DEBUG
+        Console.WriteLine("Total NPS: " + (totalNodes / 1.0 / totalTime * 1000)); // #DEBUG
 
         return best.Item1;
     }
@@ -145,7 +149,7 @@ public class EvilBot4 : IChessBot
         // eval++;
 
         if (board.IsDraw())
-            return 0;
+            return depth % 2 == 0 ? -64 : 64;
 
         if (board.IsInCheckmate())
             return -100000 - depth;
@@ -168,7 +172,7 @@ public class EvilBot4 : IChessBot
     }
 
     // (Move, long, string[]) BestMove(Board board, int depth, string[] line, long alpha=-999999999999, long beta=99999999999) {
-    private (Move, long) BestMove(Board board, int depth, long alpha=-999999999999, long beta=99999999999) {
+    private (Move, long) BestMove(Board board, int depth, long alpha=-999999999, long beta=999999999) {
         nodes++;
 
         if ((nodes & 4095) == 0 && time.MillisecondsElapsedThisTurn >= timeAlloc) 
@@ -188,7 +192,6 @@ public class EvilBot4 : IChessBot
         // long origAlpha = alpha;
         // bool inCheck = board.IsInCheck();
 
-        (Move, int, long, byte) cached;
         // List<(Move, int)> moves = new();
 
         // var key = board.ZobristKey;
@@ -207,14 +210,19 @@ public class EvilBot4 : IChessBot
             new List<(Move, int)>()
         );
 
-        if (table.TryGetValue(key, out cached)) {
+        var cached = table[key & tMask];
+
+        if (cached.Item6 == key) {
             if (cached.Item2 >= depth) {
                 if (cached.Item4 == 0)
                     // line[line.Length - depth] = cached.Item1.ToString() + "_c0";
                     // leafNodes++;
 
                     // return (cached.Item1, cached.Item3, line);
-                    return (cached.Item1, cached.Item3);
+
+                    if (!cached.Item5) {
+                        return (cached.Item1, cached.Item3);
+                    }
                 else if (cached.Item4 == 1)
                     alpha = Math.Max(alpha, cached.Item3);
                 else
@@ -327,13 +335,8 @@ public class EvilBot4 : IChessBot
             }
         }
 
-        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)));
-
-        if (table.TryGetValue(key, out cached)) {
-            table[key] = entry;
-        } else {
-            table.Add(key, entry);
-        }
+        var entry = (bestMove, depth, bestScore, (byte) (bestScore <= origAlpha ? 2 : (bestScore >= beta ? 1 : 0)), depth == searchDepth, key);
+        table[key & tMask] = entry;
 
         // return (bestMove, bestScore, bestLine);
         return (bestMove, bestScore);

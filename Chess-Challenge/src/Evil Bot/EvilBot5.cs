@@ -1,9 +1,13 @@
 using ChessChallenge.API;
 using System;
 
-public class EvilBot : IChessBot
+public class EvilBot5 : IChessBot
 {
     Move bestmoveRoot = Move.NullMove;
+
+    int nodes = 0;
+    int totalNodes = 0;
+    int totalTime = 0;
 
     // https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
     int[] pieceVal = {0, 100, 310, 330, 500, 1000, 10000 };
@@ -52,6 +56,7 @@ public class EvilBot : IChessBot
     // https://www.chessprogramming.org/Negamax
     // https://www.chessprogramming.org/Quiescence_Search
     public int Search(Board board, Timer timer, int alpha, int beta, int depth, int ply) {
+        nodes++;
         ulong key = board.ZobristKey;
         bool qsearch = depth <= 0;
         bool notRoot = ply > 0;
@@ -140,6 +145,7 @@ public class EvilBot : IChessBot
     public Move Think(Board board, Timer timer)
     {
         Console.WriteLine("EvilBot5 #######################");
+        nodes = 0;
         bestmoveRoot = Move.NullMove;
         // https://www.chessprogramming.org/Iterative_Deepening
         for(int depth = 1; depth <= 50; depth++) {
@@ -151,6 +157,12 @@ public class EvilBot : IChessBot
             if(timer.MillisecondsElapsedThisTurn >= timer.MillisecondsRemaining / 30)
                 break;
         }
+
+        totalNodes += nodes;
+        totalTime += timer.MillisecondsElapsedThisTurn;
+        Console.WriteLine("Nodes: " + nodes);
+        Console.WriteLine("NPS: " + (nodes / 1.0 / timer.MillisecondsElapsedThisTurn * 1000) + "\t" + (totalNodes / 1.0 / totalTime * 1000));
+        Console.WriteLine("");
         return bestmoveRoot.IsNull ? board.GetLegalMoves()[0] : bestmoveRoot;
     }
 }
